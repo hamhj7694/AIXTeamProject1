@@ -38,6 +38,7 @@ MODEL_PATH = (
     / "MLmodel_v2"
     / "WINDOW_LOGISTIC_DASHBOARD_EXPERIMENTAL_SAMPLE_v1.pkl"
 )
+DASHBOARD_RISK_THRESHOLD = 0.60
 WINDOW_TURNS = 10  # 12-01 학습 정의: 현재 Turn을 포함한 최근 최대 10 Turn
 WINDOW_STRIDE = 1
 
@@ -418,7 +419,7 @@ def build_window_features(
 def apply_guardrail(raw_probability: float, features: dict[str, float], bundle: dict[str, Any]) -> dict[str, Any]:
     signal_features = list(bundle["guardrail_signal_features"])
     candidate_signal_count = sum(float(features.get(name, 0) or 0) != 0 for name in signal_features)
-    threshold = float(bundle["threshold"])
+    threshold = DASHBOARD_RISK_THRESHOLD
     guardrail = bundle["guardrail"]
     final_probability = float(raw_probability)
     applied = candidate_signal_count == 0
@@ -472,7 +473,7 @@ def analyze_conversation(text: str) -> dict[str, Any]:
         result.update({
             "model_ready": True, "model_status": bundle["model_status"],
             "model_version": bundle["model_version"], "source_run": bundle["source_run"],
-            "threshold_score": float(bundle["threshold"]) * 100,
+            "threshold_score": DASHBOARD_RISK_THRESHOLD * 100,
         })
     except Exception as exc:
         result["error"] = f"모델 로드 실패: {type(exc).__name__}: {exc}"
@@ -636,7 +637,7 @@ def render_dashboard(result: dict[str, Any]) -> None:
 
 def render_demo_v2() -> None:
     st.markdown("## 보이스피싱 위험도 분석 데모 v2")
-    st.caption("문장 분리 → 문장별 LLM Event 추출 → Feature Builder → Window Logistic → 최고점 선택")
+    st.caption("문장 분리 → 문장별 LLM Event 추출 → Feature Builder → Window Logistic → 최고점 선택 · 판정 기준 60점")
     try:
         bundle = load_window_model()
         if bundle.get("model_status") == "EXPERIMENTAL_SAMPLE":
