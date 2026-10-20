@@ -13,7 +13,6 @@ from components.pages import (
     render_call_insights,
     render_damage_insights,
     render_data_intro,
-    render_demo,
     render_demo_v2,
     render_ml_validation,
     render_preprocessing,
@@ -29,7 +28,6 @@ PAGE_RENDERERS = {
     "damage_insights": render_damage_insights,
     "call_insights": render_call_insights,
     "ml_validation": render_ml_validation,
-    "demo": render_demo,
     "demo_v2": render_demo_v2,
 }
 
