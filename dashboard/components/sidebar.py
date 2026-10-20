@@ -8,8 +8,7 @@ PAGE_OPTIONS = {
     "damage_insights": "📊 피해 현황 및 특성",
     "call_insights": "📞 통화 패턴 및 핵심 인사이트",
     "ml_validation": "🤖 ML 위험 탐지 및 검증",
-    "demo": "🛡️ 서비스 데모 V1",
-    "demo_v2": "🧪 서비스 데모 V2",
+    "demo_v2": "🛡️ 서비스 데모 V2",
 }
 
 
