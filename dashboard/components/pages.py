@@ -1,7 +1,6 @@
 from components.call_insights import render_call_insights
 from components.data_intro import render_data_intro
 from components.damage_insights import render_damage_insights
-from components.demo import render_demo
 from components.demo_v2 import render_demo_v2
 from components.ml_validation import render_ml_validation
 from components.preprocessing import render_preprocessing
