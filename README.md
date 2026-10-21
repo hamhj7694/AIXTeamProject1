@@ -2,14 +2,22 @@
 
 > **통화 속 사칭·압박·정보 요구 등의 위험 신호를 데이터로 만들고, 최근 대화 구간에서 보이스피싱 위험을 분석하는 머신러닝 프로젝트**
 >
-> 공개 보이스피싱 음성·영상 및 정상 금융상담을 **Turn 표준화 → 10-Turn Window → Feature Engineering → 모델 비교 → Calibration → Risk Score → Streamlit 시각화**로 연결했습니다.
+> 공개 보이스피싱 음성·영상 및 정상 금융상담을 분석 가능한 통화 데이터로 만들고, **평가·검증용 ML Pipeline**과 **현재 서비스 연동 V2**를 분리해 구현했습니다.
+>
+> - **평가·검증용:** Turn 표준화 → 10-Turn Window → 12 Features → 모델 비교 → **Random Forest** → **Platt Calibration** → 내부 Validation/Test
+> - **현재 서비스 연동 V2:** 통화 텍스트 → LLM Event 추출 → 23 Features → **Window Logistic Regression** → Guardrail → Streamlit V2 / CSR PoC
 
 **2026.08 · 팀 프로젝트 · 팀장 / 데이터 수집·전처리 / EDA·Feature Engineering / 모델링·품질 검증 / Streamlit 대시보드**
 
-**🌐 [배포된 Streamlit 대시보드 체험하기](https://voice-phishing-prevention.streamlit.app/)** · **[📖 상세 Notion 포트폴리오](https://app.notion.com/p/e5bc753ff28a83c0a566015296a2282c)** · **[🤝 연계 프로젝트: CSR | Case Share Room](https://github.com/hamhj7694/AIXTeamProject2)**
+**🌐 [배포된 Streamlit 대시보드 체험하기](https://voice-phishing-prevention.streamlit.app/)** · **[📖 상세 Notion 포트폴리오](https://app.notion.com/p/3ffc753ff28a819a9117e4b0ca7961ce)** · **[🤝 연계 프로젝트: CSR | Case Share Room](https://github.com/hamhj7694/AIXTeamProject2)**
 
 > [!IMPORTANT]
-> **제한된 내부 실험 결과**입니다. 금융기관 상용 보이스피싱 탐지 정확도가 아니며, 정상 상담·피싱 통화 간 수집 출처 차이와 외부 일반화 한계가 남아 있습니다. 일부 대시보드 시연은 **최종 Random Forest 평가 파이프라인과 다른 모델 또는 규칙형 Feature 추출기**를 사용합니다.
+> **이 저장소에는 목적이 다른 두 ML 흐름이 있습니다.**
+>
+> 1. **평가·검증용 Random Forest + Platt Pipeline** — 모델 비교, 누수 통제, Calibration, 내부 Validation/Test에 사용
+> 2. **현재 서비스 데모 V2의 Window Logistic + Guardrail** — 실제 텍스트 입력을 받아 Streamlit V2와 CSR PoC에 연결
+>
+> 따라서 **RF Validation PR-AUC 0.818 / Internal Test PR-AUC 0.782는 현재 서비스 V2의 Logistic Regression 성능이 아닙니다.** 모든 수치는 제한된 내부 실험 결과이며 금융기관 상용 탐지 정확도가 아닙니다.
 
 ---
 
@@ -19,13 +27,16 @@
 |---|---:|---|
 | 공개 음성·영상 수집 | **513건** | 원천 자료 확보 |
 | 음성 전사 | **402건** | 수집·전사 작업 기록 |
-| 학습 가능한 통화 | **1,148건** | 피싱 766건 + 정상 382건 |
-| 학습 Window | **7,406건** | 10-Turn 이상 968개 통화에서 생성 |
-| **Window RF Validation PR-AUC** | **0.818** | 통화 균등 가중치(Case-equal) 기준 |
-| **Platt 보정 후 Window Internal Test PR-AUC** | **0.782** | 내부 Test, Calibration 적용 |
+| 통합 통화 데이터 | **1,148건** | 피싱 766건 + 정상 382건 |
+| 평가 Pipeline Window | **7,406건** | 10-Turn 이상 968개 통화에서 생성 |
+| **평가용 RF Validation PR-AUC** | **0.818** | 통화 균등 가중치(Case-equal) 기준 |
+| **평가용 RF + Platt Internal Test PR-AUC** | **0.782** | 모델 선정 후 내부 Hold-out Test |
 | Internal Test 확률 품질 | **Brier 0.176 / ECE 0.028** | 낮을수록 좋은 확률 오차 지표 |
+| **현재 서비스 데모 V2** | **Window Logistic + Guardrail** | 위 RF 성능 수치를 상속하지 않는 별도 실험 모델 |
 
-**513건 → 402건 → 1,148건**은 단일 데이터셋의 순차적인 전환 건수가 아닙니다. 1,148건은 보이스피싱과 정상 상담의 여러 원천 자료를 **추가 통합·정규화**한 최종 통화 단위 데이터셋입니다.
+**513건 → 402건 → 1,148건**은 단일 데이터셋의 순차적인 전환 건수가 아닙니다. 1,148건은 보이스피싱과 정상 상담의 여러 원천 자료를 **추가 통합·정규화한 통화 단위 데이터셋**이며, 이 중 10 Turn 이상인 968개 통화에서 평가 Pipeline용 Window를 만들었습니다.
+
+또한 **Case-equal**은 Window가 많은 긴 통화가 평가 결과를 과도하게 좌우하지 않도록, 각 원본 통화가 전체 평가에 비슷한 영향력을 갖게 가중한 방식입니다.
 
 ### 문제 정의 → 해결 접근
 
@@ -42,18 +53,31 @@
 
 ## 02. 데이터 구축 — 원문에서 Window까지
 
+### 먼저 보는 분석 단위
+
+| 단위 | 의미 | 예시 |
+|---|---|---|
+| **Call** | 원본 전화 통화 1건 | 고객과 상대방이 나눈 전체 통화 |
+| **Turn** | 한 화자가 연속해서 말한 1회의 발화 | 상대방 발화 1회, 고객 답변 1회 |
+| **Window** | ML이 한 번에 분석하는 연속 대화 구간 | 연속된 10개의 Turn |
+| **Stride** | 다음 Window가 시작되는 이동 간격 | Stride 5 = 5 Turn 뒤에서 다음 Window 시작 |
+
+예를 들어 20 Turn 통화는 `1~10`, `6~15`, `11~20`처럼 일부 Turn을 겹쳐 Window를 구성했습니다. 통화 초반과 후반의 위험 신호가 달라질 수 있고, `1~10 / 11~20`처럼 완전히 끊으면 경계에서 이어지는 대화 맥락이 잘릴 수 있기 때문입니다.
+
+> `10-Turn / Stride 5`는 이 평가 Pipeline에서 사용한 분석 설정이며, 모든 보이스피싱 통화에 최적인 유일한 값이라는 의미는 아닙니다.
+
 ### Turn 표준화와 품질 검사
 
 - **보이스피싱 자료:** 발화 순서·화자·텍스트를 공통 Turn 구조로 정리
 - **정상 금융상담:** TX/RX 마커로 발화 순서를 복원; **383건 중 382건** Turn 수 정확 일치(**99.74%**)
 - **품질 Gate:** 원본 Turn 수와 복원 결과가 불일치하는 통화를 제외
-- **최종 데이터:** 피싱 통화 766건 + 정상 통화 382건 = **1,148건**
+- **통합 통화 데이터:** 피싱 통화 766건 + 정상 통화 382건 = **1,148건**
 
 10 Turn 이상 통화만 대상으로 **Window 길이 10 Turn, Stride 5 Turn**의 학습 샘플을 구성했습니다. 10 Turn 미만 통화는 억지로 패딩하거나 부분 Window로 추가하지 않았습니다.
 
 ### 통화 ID 기준의 Train / Validation / Test
 
-데이터 누수 가능성을 줄이기 위해 **통화 단위로 Train 70% / Validation 15% / Test 15%**를 먼저 구분하고, 같은 `source_id`에서 생성된 모든 Window가 같은 Split에 속하게 했습니다.
+데이터 누수 가능성을 줄이기 위해 **통화 단위로 Train 70% / Validation 15% / Test 15%**를 먼저 구분하고, 같은 `source_id`에서 생성된 모든 Window가 같은 Split에 속하게 했습니다. 단순 Random Split을 하면 같은 Call의 Window 일부가 Train, 다른 일부가 Test에 들어가 매우 비슷한 대화를 다시 맞히는 문제가 생길 수 있기 때문입니다.
 
 | Split | Window 생성 통화 | Window 수 |
 |---|---:|---:|
@@ -101,19 +125,21 @@ Feature 후보의 승격은 **통계검정 → FDR 보정 → 단일 Feature AUC
 
 | 모델 | Validation PR-AUC (Case-equal) | Validation ROC-AUC (Case-equal) |
 |---|---:|---:|
-| **Random Forest — 선택** | **0.818** | **0.778** |
+| **Random Forest — 평가 기준 모델** | **0.818** | **0.778** |
 | LightGBM | 0.814 | 0.773 |
 | XGBoost | 0.813 | 0.775 |
 | Logistic Regression | 0.813 | 0.771 |
 | Decision Tree | 0.803 | 0.752 |
 
-**Random Forest**를 Window 모델로 선택했습니다. 모델 간 PR-AUC 차이는 크지 않으므로 다른 데이터에서도 항상 우수하다는 의미는 아닙니다.
+Validation에서 **Random Forest**가 가장 높은 PR-AUC를 기록해, **이후 내부 성능 평가와 Calibration을 이어갈 평가 기준 모델**로 사용했습니다. 이는 현재 서비스 모델을 Random Forest로 확정했다는 뜻이 아닙니다. 현재 Streamlit의 **서비스 데모 V2와 CSR 연동에는 별도의 Window Logistic Regression**을 사용합니다.
+
+모델 간 PR-AUC 차이는 크지 않으므로 Random Forest가 다른 데이터에서도 항상 우수하다는 의미도 아닙니다.
 
 **평가 근거:** [모델 비교 CSV](dashboard/data/ml_validation/window_model_comparison.csv)
 
 ### Calibration — 확률 품질의 별도 검증
 
-Window 모델의 기본 예측 확률을 보정하기 위해 Identity / Platt Scaling / Isotonic Regression을 비교하고 **Platt Scaling**을 선택했습니다.
+평가용 **Random Forest Window 모델**의 기본 예측 확률을 보정하기 위해 Identity / Platt Scaling / Isotonic Regression을 비교하고 **Platt Scaling**을 선택했습니다. Calibration의 목적은 PR-AUC 자체를 높이는 것보다, 모델이 출력한 확률의 품질을 Brier / Log Loss / ECE로 별도 확인하고 보정하는 데 있습니다.
 
 | Window Calibration | Brier ↓ | Log Loss ↓ | ECE ↓ |
 |---|---:|---:|---:|
@@ -150,9 +176,9 @@ Window 모델의 기본 예측 확률을 보정하기 위해 Identity / Platt Sc
 
 ---
 
-## 05. AI·ML 처리 아키텍처
+## 05. 평가·검증 Pipeline 아키텍처
 
-아래 도식은 **누수 방지를 우선한 논리적 평가 구조**를 나타냅니다. 실제 파일 생성 명령의 시간 순서를 뜻하지 않습니다.
+아래 도식은 **Random Forest + Platt를 사용한 평가·검증 흐름**을 나타냅니다. 현재 서비스 데모 V2의 추론 구조가 아니며, 실제 파일 생성 명령의 시간 순서를 뜻하지 않습니다.
 
 ```mermaid
 flowchart TB
@@ -166,16 +192,30 @@ flowchart TB
     H --> I["Platt Calibration / Group OOF"]
     I --> J["Internal Test: PR-AUC·Brier·ECE"]
     J --> K["Risk Score + Threshold 정책 분석"]
-    K --> L["Streamlit 데이터·ML 대시보드"]
+    K --> L["Streamlit ML 검증 화면 / 결과 시각화"]
 ```
 
-**범위 구분:** 대시보드에는 통화 종료 후 전체 문맥·Window 예측 흐름을 활용하는 **Case 보조 모델(STACKED_SAFE)**도 있습니다. 통화 중 위험 갱신을 목표로 한 Window 모델과 사용 시점이 달라 두 모델의 지표를 단순 비교하지 않습니다.
+**범위 구분:** 위 RF Pipeline은 **모델 비교·Calibration·내부 성능 검증용**입니다. 대시보드의 ML 검증 화면에서 이 결과를 시각화하지만, 현재 노출된 **서비스 데모 V2의 추론 엔진은 Random Forest가 아닙니다.**
 
-또한 `Window Logistic` 실험 데모는 별도 **실험용 샘플**을 사용합니다. 최종 Window Random Forest + Platt Calibration의 PR-AUC 수치를 해당 데모 성능이라고 주장하지 않습니다.
+현재 서비스 데모 V2는 아래처럼 별도로 동작합니다.
+
+```text
+통화 텍스트
+→ 문장별 LLM Event 추출
+→ Python Feature Builder
+→ 23 Features
+→ Window Logistic Regression
+→ Zero-feature Guardrail
+→ 최고 문장 위험점수
+```
+
+따라서 Random Forest + Platt의 PR-AUC / Brier / ECE를 **Window Logistic V2의 성능으로 주장하지 않습니다.**
+
+참고로 저장소에는 통화 종료 후 전체 문맥·Window 흐름을 다루는 **Case 보조 모델(STACKED_SAFE)** 및 과거 RULE 기반 추론 코드도 남아 있지만, 이들 역시 현재 서비스 데모 V2와 목적·경로가 다릅니다.
 
 ---
 
-## 06. Streamlit 대시보드 및 서비스 적용 검토
+## 06. Streamlit 대시보드 — 검증 화면과 현재 서비스 데모 V2
 
 **🌐 [대시보드 열기](https://voice-phishing-prevention.streamlit.app/)**
 
@@ -184,13 +224,19 @@ flowchart TB
 | 데이터 소개·전처리 | 원본 출처, 통화·Turn 정리, 품질 검사 |
 | 피해·통화 분석 | 경찰청·우체국 통계와 통화 분석을 **서로 다른 데이터로 구분**해 표시 |
 | ML 검증 | 모델 비교, Feature, Calibration, Threshold 정책 시각화 |
-| 위험도 시연 | 실험용 입력·모델을 통한 위험 신호 탐색 |
+| 서비스 데모 V2 | LLM Event → 23 Features → Window Logistic → Guardrail 기반 위험 신호 탐색 |
 
-**중요한 재현 범위:** [대시보드의 일부 Feature 추출 코드](dashboard/services/feature_extractor.py)는 `RULE_PROXY_V1`이고 `EXTRACTOR_MATCHES_TRAINING_PIPELINE = False`로 정의되어 있습니다. 즉, **사용자 입력 데모의 Feature 추출 방식은 원래 최종 모델 학습 파이프라인과 동일하지 않습니다.** 시연 점수를 실제 상용 수준의 판정 결과로 해석해서는 안 됩니다.
+**현재 UI 경로:** [`app.py`](dashboard/app.py)와 [`sidebar.py`](dashboard/components/sidebar.py)에서 현재 사용자 입력 시연은 **`서비스 데모 V2`만 노출**됩니다. 이 화면은 [`demo_v2.py`](dashboard/components/demo_v2.py)의 **LLM Event 추출 + 23 Feature Builder + Window Logistic + Guardrail** 경로를 사용합니다.
+
+**현재 V2의 중요한 한계:** 입력을 문장 단위로 분리하고, 각 문장을 **독립된 단일 Window**처럼 Feature화한 뒤 문장별 점수 중 **최고점**을 대표 위험점수로 사용합니다. 이는 모델 학습 당시의 연속된 Window 구성 방식과 동일하지 않으므로 추가 검증이 필요합니다.
+
+또한 Dashboard V2의 현재 판정 기준 **60점(0.60)**은 모델을 다시 학습해 새로 선정한 Threshold가 아니라 **데모 Runtime 정책으로 Override한 값**입니다. 앞 절의 RF 69점/SINGLE Threshold 실험과도 별개의 설정입니다.
+
+[`feature_extractor.py`](dashboard/services/feature_extractor.py)의 `RULE_PROXY_V1`과 [`detection_service.py`](dashboard/services/detection_service.py)는 저장소에 남아 있는 별도/이전 추론 경로이며, **현재 노출된 서비스 데모 V2의 추론 경로가 아닙니다.**
 
 현행 UI와 맞지 않는 예전 캡처를 현재 화면처럼 표시하지 않도록, README에는 스크린샷을 임의 추가하지 않았습니다.
 
-**구현 코드:** [대시보드 진입점](dashboard/app.py) · [ML 성능 분석 화면](dashboard/components/ml_validation.py) · [위험도 추론](dashboard/services/detection_service.py) · [모델 로더](dashboard/services/model_loader.py)
+**구현 코드:** [대시보드 진입점](dashboard/app.py) · [사이드바/현재 노출 페이지](dashboard/components/sidebar.py) · [ML 성능 분석 화면](dashboard/components/ml_validation.py) · [현재 서비스 데모 V2](dashboard/components/demo_v2.py)
 
 ---
 
@@ -203,7 +249,7 @@ flowchart TB
 | ML 학습 | scikit-learn · XGBoost · LightGBM · Joblib | 분류 모델 비교와 번들 관리 |
 | 평가·검증 | Group CV · PR-AUC · Brier · ECE | 누수 통제, Calibration, 정책별 Recall/FPR |
 | 대시보드 | Streamlit · Plotly · Matplotlib | 데이터·모델·검증 정보 시각화 |
-| 연계 검토 | OpenAI API · JSON Schema · CSR PoC | 구조화 위험 신호 및 다른 서비스로의 적용 가능성 검토 |
+| 서비스 V2 · CSR 연동 | OpenAI API · JSON Schema · Window Logistic · Guardrail · CSR PoC | LLM Event를 23개 Feature로 변환해 Dashboard V2와 CSR에 위험 신호 연결 |
 
 **팀 프로젝트 · 팀장:** 문제 정의, 공개 데이터 확보·전처리와 데이터 품질 정리, Feature/모델 검증 협업, Streamlit 대시보드 구조 설계 및 기능 통합을 수행했습니다. **정량 성과는 팀 프로젝트 전체의 내부 평가 결과**이며, 모든 데이터 수집·모델 학습 코드가 한 사람의 단독 구현이라는 뜻은 아닙니다.
 
@@ -228,7 +274,7 @@ streamlit run dashboard/app.py
 
 ```text
 AIXTeamProject1/
-├── a_함형준/                       # 개인 작업안, 최종·실험용 모델 파일
+├── a_함형준/                       # 개인 작업안, 평가·실험용 모델 파일
 ├── b_엄정희/                      # 팀 작업 폴더
 ├── c_이종열/                      # 가설 검정·분석 자료
 ├── 2. 우체국, 경찰 공개 데이터 전처리/
@@ -250,10 +296,11 @@ AIXTeamProject1/
 - **Source Bias:** 정상·피싱 통화 출처의 문체·길이·숫자 표현 등이 여전히 다를 수 있습니다.
 - **외부 독립 Test 부재:** 일부 Feature 검토에 동일 출처 데이터가 사용되어 Internal Test를 외부 일반화 검증으로 볼 수 없습니다.
 - **경고 정책:** 현재의 절충 Threshold는 목표 Recall·FPR을 동시에 만족하지 못했습니다.
-- **Demo 파이프라인 차이:** 일부 시연용 추출기·실험 모델은 최종 평가 조건과 다릅니다.
+- **모델 역할 구분:** RF + Platt는 평가·검증용이고, 현재 서비스 데모 V2는 별도의 Window Logistic + Guardrail을 사용합니다.
+- **Demo Runtime 차이:** 현재 V2는 문장별 독립 Feature화 + 최고점 정책을 사용해 학습 당시의 연속 Window 구성과 다릅니다.
 - **향후 검증:** 다양한 정상/Hard Normal·새 피싱 사례 확보, 외부 Test, 분포 변화 Calibration, Drift, 운영 비용·정책 검토가 필요합니다.
 - **안전 경계:** Streamlit 대시보드는 분석·평가·시연 도구이며 실제 금융거래 차단·지급정지를 수행하는 시스템이 아닙니다.
 
 ## 포트폴리오 요약
 
-> 서로 다른 공개 통화 데이터를 표준화하고 데이터 누수·출처 편향·Feature 품질·확률 신뢰성을 분리해 검증한 **보이스피싱 위험도 분류 ML 파이프라인**입니다. 내부 Validation에서 Window Random Forest **PR-AUC 0.818**, Platt 보정 후 Internal Test에서 **PR-AUC 0.782**를 기록하고, 이를 Streamlit 대시보드로 시각화했습니다. 수치는 제한된 내부 평가입니다.
+> 서로 다른 공개 통화 데이터를 **Call(통화) → Turn(발화) → Window(연속 대화 구간)**으로 구조화하고, 데이터 누수·출처 편향·Feature 품질·확률 신뢰성을 분리해 검증한 Applied ML 프로젝트입니다. **평가·검증용 Random Forest + Platt Pipeline**은 Validation PR-AUC **0.818**, Internal Test PR-AUC **0.782**를 기록했습니다. 현재 **서비스 데모 V2는 별도의 Window Logistic + Guardrail**을 사용하며, RF 성능 수치를 V2 성능으로 해석하지 않습니다. 모든 수치는 제한된 내부 평가입니다.
