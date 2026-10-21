@@ -1,23 +1,23 @@
-# Voice Phishing ML — 보이스피싱 위험도 분류·검증 파이프라인
+# Voice Phishing ML — 보이스피싱 통화 데이터 분석·모델 평가·서비스 연동
 
 > **통화 속 사칭·압박·정보 요구 등의 위험 신호를 데이터로 만들고, 최근 대화 구간에서 보이스피싱 위험을 분석하는 머신러닝 프로젝트**
 >
-> 공개 보이스피싱 음성·영상 및 정상 금융상담을 분석 가능한 통화 데이터로 만들고, **평가·검증용 ML Pipeline**과 **현재 서비스 연동 V2**를 분리해 구현했습니다.
+> 공개 보이스피싱 음성·영상 및 정상 금융상담을 분석 가능한 통화 데이터로 만들고, **모델 성능 평가 과정**과 **실제 시연 서비스에 연결한 별도 분류 모델**을 구분했습니다.
 >
-> - **평가·검증용:** Turn 표준화 → 10-Turn Window → 12 Features → 모델 비교 → **Random Forest** → **Platt Calibration** → 내부 Validation/Test
-> - **현재 서비스 연동 V2:** 통화 텍스트 → LLM Event 추출 → 23 Features → **Window Logistic Regression** → Guardrail → Streamlit V2 / CSR PoC
+> - **모델 평가용:** 발화(Turn) 정리 → 발화 10개씩 묶은 연속 구간(Window) → 특징값 12개 → **Random Forest** 비교·확률 보정(Platt) → 내부 검증·시험
+> - **시연 서비스 V2:** 통화 텍스트 → LLM 위험 행동·사건 추출 → 특징값 23개 → **별도 로지스틱 회귀 모델** → 위험 점수 후처리 → Streamlit V2 / CSR PoC
 
-**2026.08 · 팀 프로젝트 · 팀장 / 데이터 수집·전처리 / EDA·Feature Engineering / 모델링·품질 검증 / Streamlit 대시보드**
+**2026.08 · 팀 프로젝트 · 팀장 / 데이터 수집·전처리 / 탐색적 분석(EDA)·특징값 설계 / 모델 검증 협업·품질 확인 / Streamlit 대시보드 통합**
 
 **🌐 [배포된 Streamlit 대시보드 체험하기](https://voice-phishing-prevention.streamlit.app/)** · **[📖 상세 Notion 포트폴리오](https://app.notion.com/p/3ffc753ff28a819a9117e4b0ca7961ce)** · **[🤝 연계 프로젝트: CSR | Case Share Room](https://github.com/hamhj7694/AIXTeamProject2)**
 
 > [!IMPORTANT]
 > **이 저장소에는 목적이 다른 두 ML 흐름이 있습니다.**
 >
-> 1. **평가·검증용 Random Forest + Platt Pipeline** — 모델 비교, 누수 통제, Calibration, 내부 Validation/Test에 사용
-> 2. **현재 서비스 데모 V2의 Window Logistic + Guardrail** — 실제 텍스트 입력을 받아 Streamlit V2와 CSR PoC에 연결
+> 1. **평가용 Random Forest + Platt 확률 보정** — 모델 비교·통화 중복 노출 방지·내부 성능 검증에 사용
+> 2. **현재 시연 서비스 V2의 별도 로지스틱 회귀 모델** — 문장별 입력값과 위험 점수 후처리 규칙을 사용해 Streamlit V2·CSR PoC에 연결
 >
-> 따라서 **RF Validation PR-AUC 0.818 / Internal Test PR-AUC 0.782는 현재 서비스 V2의 Logistic Regression 성능이 아닙니다.** 모든 수치는 제한된 내부 실험 결과이며 금융기관 상용 탐지 정확도가 아닙니다.
+> 따라서 **검증 데이터 PR-AUC 0.818 / 별도 시험 데이터 PR-AUC 0.782는 평가용 Random Forest의 결과**이며, 시연 서비스 V2에 연결한 로지스틱 회귀 모델의 성능 수치가 아닙니다. 모든 수치는 제한된 내부 평가이며 금융기관 상용 탐지 정확도를 뜻하지 않습니다.
 
 ---
 
@@ -28,11 +28,11 @@
 | 공개 음성·영상 수집 | **513건** | 원천 자료 확보 |
 | 음성 전사 | **402건** | 수집·전사 작업 기록 |
 | 통합 통화 데이터 | **1,148건** | 피싱 766건 + 정상 382건 |
-| 평가 Pipeline Window | **7,406건** | 10-Turn 이상 968개 통화에서 생성 |
+| 평가용 연속 발화 구간(Window) | **7,406개** | 10개 이상 발화가 있는 통화 968건에서 생성 |
 | **평가용 RF Validation PR-AUC** | **0.818** | 통화 균등 가중치(Case-equal) 기준 |
 | **평가용 RF + Platt Internal Test PR-AUC** | **0.782** | 모델 선정 후 내부 Hold-out Test |
 | Internal Test 확률 품질 | **Brier 0.176 / ECE 0.028** | 낮을수록 좋은 확률 오차 지표 |
-| **현재 서비스 데모 V2** | **Window Logistic + Guardrail** | 위 RF 성능 수치를 상속하지 않는 별도 실험 모델 |
+| **시연 서비스 V2** | **별도 로지스틱 회귀 + 후처리 규칙** | 평가용 Random Forest와 입력 단위·모델이 다른 경로 |
 
 **513건 → 402건 → 1,148건**은 단일 데이터셋의 순차적인 전환 건수가 아닙니다. 1,148건은 보이스피싱과 정상 상담의 여러 원천 자료를 **추가 통합·정규화한 통화 단위 데이터셋**이며, 이 중 10 Turn 이상인 968개 통화에서 평가 Pipeline용 Window를 만들었습니다.
 
@@ -44,23 +44,23 @@
 |---|---|
 | '송금·대출·계좌' 같은 단어는 정상 상담에도 등장 | 단순 키워드가 아니라 **사칭·압박·행동 요구와 신호 조합** 분석 |
 | 자료마다 화자·발화 구조가 다름 | 공통 **Turn 구조** 변환 및 원본 Turn 수 품질 검사 |
-| 같은 통화의 비슷한 Window가 학습/시험에 중복될 위험 | **source_id별 Group 분할** 및 Group-aware CV |
+| 같은 통화의 유사한 발화 구간이 학습·평가에 중복될 위험 | 통화 ID(`source_id`) 기준 그룹 분할·교차검증 |
 | 긴 통화가 Window 수만큼 모델에 과도한 영향 | **1 / 통화별 Window 수**로 통화 균등 가중치 적용 |
-| 분류 점수를 실제 위험 확률처럼 해석하기 쉬움 | **Calibration**과 위험 경고 **Threshold 정책** 분리 |
-| 수집 출처의 문체·길이 차이를 학습할 위험 | 출처·길이 Proxy 진단 및 Feature 제외 |
+| 모델 점수를 실제 위험 확률로 오해할 위험 | **확률 보정(Calibration)**과 **경고 임계값 정책**을 구분 |
+| 수집 출처의 문체·길이 차이를 학습할 위험 | 출처·길이의 대리 신호(Proxy)를 확인하고 일부 입력 특징값에서 제외 |
 
 ---
 
-## 02. 데이터 구축 — 원문에서 Window까지
+## 02. 데이터 구축 — 원문에서 연속 발화 구간까지
 
 ### 먼저 보는 분석 단위
 
 | 단위 | 의미 | 예시 |
 |---|---|---|
-| **Call** | 원본 전화 통화 1건 | 고객과 상대방이 나눈 전체 통화 |
-| **Turn** | 한 화자가 연속해서 말한 1회의 발화 | 상대방 발화 1회, 고객 답변 1회 |
-| **Window** | ML이 한 번에 분석하는 연속 대화 구간 | 연속된 10개의 Turn |
-| **Stride** | 다음 Window가 시작되는 이동 간격 | Stride 5 = 5 Turn 뒤에서 다음 Window 시작 |
+| **통화(Call)** | 원본 전화 통화 1건 | 고객과 상대방이 나눈 전체 통화 |
+| **발화(Turn)** | 한 화자가 연속해서 말한 발화 | 상대방 발화 1회, 고객 답변 1회 |
+| **연속 발화 구간(Window)** | 평가 모델이 한 번에 분석하는 대화 묶음 | 연속된 발화 10개 |
+| **이동 간격(Stride)** | 다음 구간이 시작되는 간격 | 5개 발화 뒤에서 다음 구간 시작 |
 
 예를 들어 20 Turn 통화는 `1~10`, `6~15`, `11~20`처럼 일부 Turn을 겹쳐 Window를 구성했습니다. 통화 초반과 후반의 위험 신호가 달라질 수 있고, `1~10 / 11~20`처럼 완전히 끊으면 경계에서 이어지는 대화 맥락이 잘릴 수 있기 때문입니다.
 
@@ -90,7 +90,13 @@
 
 ---
 
-## 03. Feature Engineering 및 Semantic QC
+### 탐색적 데이터 분석(EDA) · 품질·출처 편향 점검
+
+모델 비교 전 결측·중복·통화 길이와 수집 출처, 사칭·요구 행동·금전 관련 표현의 분포를 분석하고, 모델이 사기 신호 대신 자료 출처나 길이 차이를 학습할 가능성을 검토했습니다. **탐색적 분석용 자료와 아래 1,148통화 평가용 자료는 집계 단계가 달라 수치를 합산하지 않습니다.**
+
+[탐색적 데이터 분석 자료](https://drive.google.com/file/d/1zkqt15hxpLi31kmS5HZEjyHBMKSjyjSf/view) · [Notion 분석·평가 상세](https://app.notion.com/p/3ffc753ff28a819a9117e4b0ca7961ce)
+
+## 03. 위험 신호 특징값 설계 및 의미 품질 검사
 
 단어 빈도만으로 판단하지 않도록 Window에서 **12개 행동·맥락 Feature**를 추출해 비교했습니다.
 
@@ -103,7 +109,7 @@
 | 결합 효과 | `ix_identityclaim_authority_sem`, `ix_info_sensitive_sem` | 사칭×권위, 정보 추출×민감정보 요구 |
 | 변화량 | `signal_family_count_delta_sem` | 이전 Window 대비 위험 신호 변화 |
 
-**Semantic QC**에서는 일반 금융 안내나 예방 경고를 위험 요청으로 잘못 분류하지 않도록 Positive / Negative 기준을 나누었습니다.
+**위험 문구의 의미 품질 검사(Semantic QC)**에서는 일반 금융 안내나 사기 예방 경고를 실제 위험 요청으로 잘못 분류하지 않도록 위험·정상·판단 유보 기준을 구분했습니다.
 
 | 후보 분류 | 건수 |
 |---|---:|
@@ -176,7 +182,7 @@ Validation에서 **Random Forest**가 가장 높은 PR-AUC를 기록해, **이�
 
 ---
 
-## 05. 평가·검증 Pipeline 아키텍처
+## 05. 평가용 모델의 데이터 처리·검증 구조
 
 아래 도식은 **Random Forest + Platt를 사용한 평가·검증 흐름**을 나타냅니다. 현재 서비스 데모 V2의 추론 구조가 아니며, 실제 파일 생성 명령의 시간 순서를 뜻하지 않습니다.
 
@@ -215,7 +221,7 @@ flowchart TB
 
 ---
 
-## 06. Streamlit 대시보드 — 검증 화면과 현재 서비스 데모 V2
+## 06. Streamlit 대시보드 — 모델 평가 화면과 현재 시연 서비스 V2
 
 **🌐 [대시보드 열기](https://voice-phishing-prevention.streamlit.app/)**
 
@@ -290,6 +296,12 @@ AIXTeamProject1/
 주요 근거: [Window 모델 비교](dashboard/data/ml_validation/window_model_comparison.csv) · [Calibration](dashboard/data/ml_validation/calibration_manifest_07.json) · [경고 정책](dashboard/data/ml_validation/threshold_policy_config_08.json) · [원문 추출](%EC%9B%90%EB%AC%B8%20%EC%B6%94%EC%B6%9C/2.%20%EC%BD%94%EB%9E%A9%20%ED%99%9C%EC%9A%A9%20%EC%9D%8C%EC%9B%90%20%ED%85%8D%EC%8A%A4%ED%8A%B8%ED%99%94/transcribe_cases.py)
 
 ---
+
+### 합성 시나리오를 활용한 오탐·미탐 검증 설계
+
+위험 단어가 포함된 정상 금융상담·일반 대화·보이스피싱 사례 등을 구분한 **가상 시나리오 72개(정량 평가 대상 64개)**를 활용해 오탐·미탐을 점검하는 기준을 설계했습니다. 이는 **모델 재학습용 합성 데이터가 아니라 평가용 시나리오**이며, 별도 실행 결과가 확인되지 않은 정량 성능은 주장하지 않습니다.
+
+[평가 시나리오 실행 가이드](https://drive.google.com/file/d/1pTWJSzfWKIjVB3WBjRISubOyVioQia9A/view)
 
 ## 09. 한계 및 다음 과제
 
