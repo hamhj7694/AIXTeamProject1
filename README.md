@@ -208,6 +208,8 @@ Validation에서 **Random Forest**가 가장 높은 PR-AUC를 기록해, **이�
 
 대시보드·CSR의 바이너리는 Git blob SHA **`54bd051ed425563f1c512d26749500a289ddac1c`**로 동일합니다. 단, Git에 동일한 파일이 있다는 사실만으로 실제 클라우드 배포 프로세스가 그 파일을 로드 중인지까지 확정할 수는 없습니다.
 
+**Drive 원본 바이너리 직접 대조 완료:** [12_08 산출 Pickle](https://drive.google.com/file/d/1z_hmQTM3toEaJtN3lnfukQBRafOuySWT/view)의 SHA-256은 **`662db2a9351dc4ca2c453776ae6f45750e465234cc9abcecc65b58a6b047c5fc`**, Git blob SHA는 **`54bd051ed425563f1c512d26749500a289ddac1c`**로 GitHub 대시보드·CSR 모델 파일과 **바이트 단위로 동일**합니다. 12_07의 [학습 Bundle](https://drive.google.com/file/d/1neLbWmCX4oFGFyoN7wee4jpspQnA2va_/view)을 12_08의 Export 코드가 입력으로 읽었다는 실행 기록까지 확인했습니다. **12_11 평가 시에는 17개 합성 Feature를 정규식·수동 규칙으로 23개로 바꾸며, V2의 LLM 추출/Guardrail/최고점 집계 전체 경로와 같지 않습니다.**
+
 **원본 노트북·출처:** [12_07 Recall-first 학습](https://drive.google.com/file/d/1SdI-c2CEZXDS_ZfFDN_9DGwzNOCdzF-Y/view) · [12_08 Pickle Export](https://drive.google.com/file/d/1vu0eqIKg-CKFYimSb3biNSOWnTRF5i0x/view) · [12_11 합성 400시나리오 테스트](https://drive.google.com/file/d/1V6chmclhXzN5yMTFPhdoFzwrvAAWobfD/view) · [학습 전 과정 PDF](https://drive.google.com/file/d/1RLE_0RicQth_R5XJWZUWw__9jVl-Etr9/view)
 
 
