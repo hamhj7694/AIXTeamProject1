@@ -12,13 +12,15 @@
 **🌐 [배포된 Streamlit 대시보드 체험하기](https://voice-phishing-prevention.streamlit.app/)** · **[📖 상세 Notion 포트폴리오](https://app.notion.com/p/3ffc753ff28a819a9117e4b0ca7961ce)** · **[🤝 연계 프로젝트: CSR | Case Share Room](https://github.com/hamhj7694/AIXTeamProject2)**
 
 > [!IMPORTANT]
-> **이 저장소에는 목적이 다른 두 ML 흐름이 있습니다.**
+> **V2에 탑재된 Pickle은 09_02가 아니라, 12_07 Recall-first Window Logistic 학습 → 12_08 Pickle Export에서 만들어졌습니다.**
 >
-> 1. **평가용 Random Forest + Platt 확률 보정** — 모델 비교·통화 중복 노출 방지·내부 성능 검증에 사용
-> 2. **현재 시연 서비스 V2의 별도 로지스틱 회귀 모델** — 문장별 입력값과 위험 점수 후처리 규칙을 사용해 Streamlit V2·CSR PoC에 연결
+> - **07~08 RF 평가:** Random Forest + Platt. Validation PR-AUC **0.818** / Internal Test PR-AUC **0.782**. 현재 V2 Logistic의 성능이 아닙니다.
+> - **09_02 통합 의심 경고:** 기존 Window + **통화 종료 후 Case** 예측을 OR 결합한 별도 정책 실험. Test 통합 Recall **99.13%**, Precision **79.17%**, 정상 FPR **51.72%**. **새 Logistic 모델의 학습 결과나 실시간 탐지율이 아닙니다.**
+> - **12_07 학습:** SAMPLE 18통화 기반으로 Recall-first 임계값을 탐색하고 Window Logistic을 선정한 뒤 `WINDOW_EXPERIMENTAL_SAMPLE_v1.joblib` 저장.
+> - **12_08 Export:** 위 12_07 모델에 23 Features·원본 Threshold **0.95**·Guardrail을 포함한 `WINDOW_LOGISTIC_DASHBOARD_EXPERIMENTAL_SAMPLE_v1.pkl` 생성. **`EXPERIMENTAL_SAMPLE`**이며 FULL 학습본이 아닙니다.
+> - **현행 연결:** Streamlit V2와 CSR에 Git blob SHA가 동일한 PKL이 들어 있습니다. 하지만 Feature Window 구성, Guardrail, Runtime Threshold가 달라 **동일한 추론 결과·성능을 보장하지 않습니다.**
 >
-> 따라서 **검증 데이터 PR-AUC 0.818 / 별도 시험 데이터 PR-AUC 0.782는 평가용 Random Forest의 결과**이며, 시연 서비스 V2에 연결한 로지스틱 회귀 모델의 성능 수치가 아닙니다. 모든 수치는 제한된 내부 평가이며 금융기관 상용 탐지 정확도를 뜻하지 않습니다.
-
+> **중요한 성능 한계:** 12_07의 매우 작은 Hold-out(피싱 2·정상 2통화)에서 원본 95점 Window 기준 Recall은 **0%**였습니다. 후속 12_11의 **합성 400시나리오·수동 Feature 변환·60점 테스트**는 Recall **95.0%**, Precision **80.5%**였지만 실제 통화 기반 독립 검증이나 V2 서비스 E2E 정확도가 아닙니다.
 ---
 
 ## 01. 프로젝트 요약 및 주요 성과
@@ -180,6 +182,35 @@ Validation에서 **Random Forest**가 가장 높은 PR-AUC를 기록해, **이�
 
 **근거:** [Threshold Policy JSON](dashboard/data/ml_validation/threshold_policy_config_08.json)
 
+### 서비스용 Window Logistic 계보: 이전 Colab부터 12_11까지
+
+| 단계 | 코드·실행 출력으로 확인한 역할 | V2 모델과의 관계 |
+|---|---|---|
+| 12_01 | 피싱·정상 대화를 Turn으로 정리하고 LLM Event를 수치 Feature로 변환; 실행 `SAMPLE` 20통화·1,052 Turn | 학습 데이터 생산 |
+| 12_02 | Feature 후보 준비와 학습 데이터 한정 필터링 절차 | 후보 입력 정리 |
+| 12_03 | Window/Cumulative의 Logistic·RF 최초 학습·비교 | 초기 모델 실험 |
+| 12_04 | 중립 라벨·Hard Negative·Threshold 개선 | 모델 개선 실험 |
+| 12_05 | Rule Score + Hybrid ML 실험 | 대안 구조 검토 |
+| 12_06 | 통화 단위 OOF CV·RAW/Hybrid·Guardrail 비교 | 12_07의 전 단계 |
+| **12_07** | **Recall-first 목표(Case Recall ≥ 0.90, 정상 FPR ≤ 0.35)로 Window Logistic 선정·재학습; SAMPLE 18통화 중 14 Train/Validation, 4 Hold-out Test** | **학습 원본 `.joblib` 저장** |
+| **12_08** | **12_07의 SAMPLE Window Bundle을 읽어 Feature 23개·원본 Threshold 95점·Guardrail·메타데이터를 PKL로 저장** | **현재 대시보드 V2·CSR에 포함된 실험용 아티팩트의 Export 경로** |
+| 12_09 | FULL 추출·재학습·Export를 위한 Colab 존재; 보존된 노트북에서 최종 FULL 학습·Export 성공 출력은 확인되지 않음 | 현재 PKL의 생성 근거 아님 |
+| 12_10 | 정상 1,000 / 피싱 1,000 샘플 기반 별도 Logistic 학습·임계값 실험 | V2 PKL과 별도의 모델 |
+| **12_11** | **12_07 SAMPLE 모델을 재사용**, 12_10의 합성 시나리오 400개를 규칙으로 17개→23개 Feature 변환해 **60점 기준 테스트** | **별도 합성 Feature 테스트. 모델 재학습 아님** |
+
+**검증·테스트를 분리해야 합니다.** 12_07의 OOF 검증에서 Window Logistic은 통화 수준 Recall 100%, Precision 75%, 정상 FPR 25%를 기록했지만, **4통화 Hold-out**에서는 **TP=0, FN=2, FP=0, TN=2 (Recall 0%)**였습니다. 선정된 95점 Threshold가 새로운 통화에 일반화됐다는 증거는 부족합니다.
+
+**12_11의 60점 합성 테스트:** 피싱 200·정상 200시나리오에서 **TP=190, FN=10, FP=46, TN=154**, Recall **95.0%**, Precision **80.5%**, 정상 FPR **23.0%**, Accuracy **86.0%**. 이 수치는 **수동/규칙 생성 Feature → 저장 Logistic → Guardrail → 60점**의 제한적 평가입니다. 실제 Streamlit V2의 **LLM Event 추출 → 문장별 단독 Window → 최고점 선택** 흐름이나 CSR의 **10 Turn 누적 Window**를 E2E로 검증한 결과가 아닙니다.
+
+**09_02 결과는 다른 정책:** [통합 공격적 경고 설정](dashboard/data/ml_validation/integrated_alert_policy_config_09_02.json)에서는 실시간 Window만의 Test Recall이 **58.44%**, 통화 종료 후 Case를 결합한 통합 Recall이 **99.13%**로 각각 기록됩니다. 통합 정상 FPR **51.72%**도 반드시 함께 공개해야 하며 V2 모델 수치로 전용해서는 안 됩니다.
+
+**서비스 연결의 코드상 차이:** 대시보드 V2는 [demo_v2.py](dashboard/components/demo_v2.py)에서 **60점으로 override**한 뒤 문장별 독립 Feature 중 최고 점수를 사용합니다. CSR은 [모델 Adapter](https://github.com/hamhj7694/AIXTeamProject2/blob/main/MVP_v3/backend/ai_api/app/domains/diagnosis/model_adapter.py)와 [Window 처리](https://github.com/hamhj7694/AIXTeamProject2/blob/main/MVP_v3/backend/ai_api/app/domains/diagnosis/window_ai/service.py)에서 최근 최대 10개 발화 Event의 누적 Feature를 사용하고 **금전 단독 신호 추가 Guardrail**을 적용합니다. CSR의 임계값은 `WINDOW_RISK_THRESHOLD` 환경변수가 있으면 override하고 없으면 PKL 원본 **95점**입니다. [현재 Docker Compose](https://github.com/hamhj7694/AIXTeamProject2/blob/main/MVP_v3/docker-compose.yml)의 AI API 환경 목록에는 이 변수가 빠져 있어, `.env.example`의 60점 설정만으로 컨테이너 반영이 보장되지는 않습니다.
+
+대시보드·CSR의 바이너리는 Git blob SHA **`54bd051ed425563f1c512d26749500a289ddac1c`**로 동일합니다. 단, Git에 동일한 파일이 있다는 사실만으로 실제 클라우드 배포 프로세스가 그 파일을 로드 중인지까지 확정할 수는 없습니다.
+
+**원본 노트북·출처:** [12_07 Recall-first 학습](https://drive.google.com/file/d/1SdI-c2CEZXDS_ZfFDN_9DGwzNOCdzF-Y/view) · [12_08 Pickle Export](https://drive.google.com/file/d/1vu0eqIKg-CKFYimSb3biNSOWnTRF5i0x/view) · [12_11 합성 400시나리오 테스트](https://drive.google.com/file/d/1V6chmclhXzN5yMTFPhdoFzwrvAAWobfD/view) · [학습 전 과정 PDF](https://drive.google.com/file/d/1RLE_0RicQth_R5XJWZUWw__9jVl-Etr9/view)
+
+
 ---
 
 ## 05. 평가용 모델의 데이터 처리·검증 구조
@@ -236,7 +267,7 @@ flowchart TB
 
 **현재 V2의 중요한 한계:** 입력을 문장 단위로 분리하고, 각 문장을 **독립된 단일 Window**처럼 Feature화한 뒤 문장별 점수 중 **최고점**을 대표 위험점수로 사용합니다. 이는 모델 학습 당시의 연속된 Window 구성 방식과 동일하지 않으므로 추가 검증이 필요합니다.
 
-또한 Dashboard V2의 현재 판정 기준 **60점(0.60)**은 모델을 다시 학습해 새로 선정한 Threshold가 아니라 **데모 Runtime 정책으로 Override한 값**입니다. 앞 절의 RF 69점/SINGLE Threshold 실험과도 별개의 설정입니다.
+또한 Dashboard V2의 현재 판정 기준 **60점(0.60)**은 모델을 다시 학습해 새로 선정한 Threshold가 아니라 **데모 Runtime 정책으로 Override한 값**입니다. 앞 절의 RF 69점/SINGLE Threshold 실험과도 별개의 설정입니다. **12_11에서 60점 합성 Feature 시나리오 검증을 수행한 기록은 있으나, 실제 V2 E2E·독립 통화 검증은 아닙니다.**
 
 [`feature_extractor.py`](dashboard/services/feature_extractor.py)의 `RULE_PROXY_V1`과 [`detection_service.py`](dashboard/services/detection_service.py)는 저장소에 남아 있는 별도/이전 추론 경로이며, **현재 노출된 서비스 데모 V2의 추론 경로가 아닙니다.**
 
